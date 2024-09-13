@@ -100,4 +100,11 @@ public class DishServiceImpl implements DishService {
         }
         dishFlavorMapper.insertBatch(flavors);
     }
+
+    @Override
+    public void updateStats(Integer status,Long dishId) {
+        Dish dish = dishMapper.getById(dishId);
+        dish.setStatus(status);
+        dishMapper.update(dish);
+    }
 }
