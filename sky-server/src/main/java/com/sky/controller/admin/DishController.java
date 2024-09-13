@@ -72,4 +72,10 @@ public class DishController {
         return Result.success();
     }
 
+    @GetMapping("/list")
+    public Result<List<DishVO>> list(String categoryId){
+        List<DishVO> dishVOList=dishService.getByCategoryId(categoryId);
+        return Result.success(dishVOList);
+    }
+
 }
