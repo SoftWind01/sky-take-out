@@ -14,7 +14,8 @@
             <if test="id!=null">id=#{id},</if>
             <if test="image!=null and image!=''">image=#{image},</if>
             <if test="name!=null and name!=''">name=#{name},</if>
-            <if test="price!=null">price=#{price}</if>
+            <if test="price!=null">price=#{price},</if>
+            <if test="status!=null">status=#{status}</if>
         </set>
     </update>
 

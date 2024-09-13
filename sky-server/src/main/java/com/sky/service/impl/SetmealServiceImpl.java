@@ -2,10 +2,15 @@ package com.sky.service.impl;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import com.sky.constant.MessageConstant;
+import com.sky.constant.StatusConstant;
 import com.sky.dto.SetmealDTO;
 import com.sky.dto.SetmealPageQueryDTO;
+import com.sky.entity.Dish;
 import com.sky.entity.Setmeal;
 import com.sky.entity.SetmealDish;
+import com.sky.exception.SetmealEnableFailedException;
+import com.sky.mapper.DishMapper;
 import com.sky.mapper.SetmealDishMapper;
 import com.sky.mapper.SetmealMapper;
 import com.sky.result.PageResult;
@@ -26,6 +31,9 @@ public class SetmealServiceImpl implements SetmealService {
 
     @Autowired
     private SetmealDishMapper setmealDishMapper;
+
+    @Autowired
+    private DishMapper dishMapper;
 
     @Override
     public void save(SetmealDTO setmealDTO) {
@@ -73,9 +81,32 @@ public class SetmealServiceImpl implements SetmealService {
 
     @Override
     public void delete(List<Long> ids) {
+        for(Long id : ids) {
+            Setmeal setmeal = setmealMapper.getSetmealById(id);
+            if(setmeal==null||setmeal.getStatus()==StatusConstant.ENABLE) {
+                throw new SetmealEnableFailedException(MessageConstant.SETMEAL_ON_SALE);
+            }
+        }
         setmealMapper.delete(ids);
         for(Long id : ids) {
             setmealDishMapper.deleteBySetmealId(id);
         }
+    }
+
+    @Override
+    public void updateStatus(Integer status, Long id) {
+        if(status== StatusConstant.ENABLE){
+            List<Dish> dishList=dishMapper.getBySetmealId(id);
+            if(dishList!=null&&dishList.size()>0) {
+                for(Dish dish : dishList) {
+                    if(dish.getStatus()==StatusConstant.DISABLE){
+                        throw new SetmealEnableFailedException(MessageConstant.SETMEAL_ENABLE_FAILED);
+                    }
+                }
+            }
+        }
+        Setmeal setmeal = setmealMapper.getSetmealById(id);
+        setmeal.setStatus(status);
+        setmealMapper.update(setmeal);
     }
 }
