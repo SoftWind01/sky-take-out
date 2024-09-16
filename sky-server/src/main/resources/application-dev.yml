@@ -13,3 +13,7 @@ sky:
     access-key-secret: GLhSjpqdgRN2pZw9iekbYtW9uzf6RD
     bucket-name: web-tilas-wind
 
+  redis:
+    host: localhost
+    port: 6379
+    database: 2
