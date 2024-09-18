@@ -17,6 +17,7 @@
             <if test="price!=null">price=#{price},</if>
             <if test="status!=null">status=#{status}</if>
         </set>
+        where id=#{id}
     </update>
 
     <delete id="delete">

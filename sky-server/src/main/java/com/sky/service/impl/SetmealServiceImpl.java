@@ -101,13 +101,17 @@ public class SetmealServiceImpl implements SetmealService {
             if(dishList!=null&&dishList.size()>0) {
                 for(Dish dish : dishList) {
                     if(dish.getStatus()==StatusConstant.DISABLE){
-                        throw new SetmealEnableFailedException(MessageConstant.SETMEAL_ENABLE_FAILED);
+                        throw new SetmealEnableFailedException(MessageConstant.DISH_DISABLE);
                     }
                 }
             }
         }
-        Setmeal setmeal = setmealMapper.getSetmealById(id);
-        setmeal.setStatus(status);
+        /*Setmeal setmeal = setmealMapper.getSetmealById(id);
+        setmeal.setStatus(status);*/
+        Setmeal setmeal = Setmeal.builder()
+                .id(id)
+                .status(status)
+                .build();
         setmealMapper.update(setmeal);
     }
 
