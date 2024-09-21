@@ -282,4 +282,17 @@ public class OrderServiceImpl implements OrderService {
         orders.setId(id);
         orderMapper.update(orders);
     }
+
+    @Override
+    public void reminderOrder(Long id) {
+        Orders orders=orderMapper.getByOrderId(id);
+        if(orders==null){
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+        Map map=new HashMap<>();
+        map.put("type",2);
+        map.put("orderId",id);
+        map.put("content","订单号："+orders.getNumber());
+        webSocketServer.sendToAllClient(JSONObject.toJSONString(map));
+    }
 }
