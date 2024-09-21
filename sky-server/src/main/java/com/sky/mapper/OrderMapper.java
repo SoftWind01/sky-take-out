@@ -31,6 +31,7 @@ public interface OrderMapper {
      */
     void update(Orders orders);
 
+
     @Update("update orders set status = #{orderStatus},pay_status = #{orderPaidStatus} ,checkout_time = #{check_out_time} where id = #{id}")
     void updateStatus(Integer orderStatus, Integer orderPaidStatus, LocalDateTime check_out_time, Long id);
 
@@ -40,4 +41,9 @@ public interface OrderMapper {
 
     @Select("select * from orders where id=#{id}")
     Orders getByOrderId(Long id);
+
+    @Select("select count(*) from orders where status=#{status}")
+    int countByStatus(Integer status);
+
+    List<Orders> getByStatusAndTime(Integer status, LocalDateTime time);
 }

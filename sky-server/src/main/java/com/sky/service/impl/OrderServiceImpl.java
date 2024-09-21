@@ -3,11 +3,10 @@ package com.sky.service.impl;
 import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import com.sky.config.WebSocketConfiguration;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
-import com.sky.dto.OrdersPageQueryDTO;
-import com.sky.dto.OrdersPaymentDTO;
-import com.sky.dto.OrdersSubmitDTO;
+import com.sky.dto.*;
 import com.sky.entity.*;
 import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.OrderBusinessException;
@@ -16,8 +15,10 @@ import com.sky.result.PageResult;
 import com.sky.service.OrderService;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
+import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
+import com.sky.websocket.WebSocketServer;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,7 +26,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -40,6 +43,8 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     WeChatPayUtil wechatPayUtil;
     private Orders orders;
+    @Autowired
+    private WebSocketServer webSocketServer;
 
     @Override
     public OrderSubmitVO submit(OrdersSubmitDTO ordersSubmitDTO) {
@@ -124,6 +129,13 @@ public class OrderServiceImpl implements OrderService {
         Integer OrderStatus = Orders.TO_BE_CONFIRMED;  //订单状态，待接单
         LocalDateTime check_out_time = LocalDateTime.now();//更新支付时间
         orderMapper.updateStatus(OrderStatus, OrderPaidStatus, check_out_time, this.orders.getId());
+
+        Map map=new HashMap();
+        map.put("type",1);
+        map.put("orderId",orders.getId());
+        map.put("content","订单号"+this.orders.getId());
+        webSocketServer.sendToAllClient(JSONObject.toJSONString(map));
+
         return vo;
     }
 
@@ -173,7 +185,6 @@ public class OrderServiceImpl implements OrderService {
     public OrderVO orderDetail(Long id) {
         Orders orders=orderMapper.getByOrderId(id);
         List<OrderDetail> orderDetailList=orderDetailMapper.getByOrderId(id);
-        OrderDetail orderDetail= orderDetailList.get(0);
         OrderVO orderVO = new OrderVO();
         BeanUtils.copyProperties(orders, orderVO);
         orderVO.setOrderDetailList(orderDetailList);
@@ -199,5 +210,76 @@ public class OrderServiceImpl implements OrderService {
                 shoppingCartMapper.insert(shoppingCart);
             }
         }
+    }
+
+    @Override
+    public PageResult conditionSearch(OrdersPageQueryDTO ordersPageQueryDTO) {
+        List<OrderVO> list=new ArrayList<>();
+        PageHelper.startPage(ordersPageQueryDTO.getPage(),ordersPageQueryDTO.getPageSize());
+        Page<Orders> ordersList=orderMapper.page(ordersPageQueryDTO);
+        if(ordersList!=null && ordersList.size()>0){
+            List<String> nameList=new ArrayList<>();
+
+            for(Orders order:ordersList){
+                OrderVO orderVO=new OrderVO();
+                List<OrderDetail> orderDetailList= orderDetailMapper.getByOrderId(order.getId());
+                if(orderDetailList!=null && orderDetailList.size()>0){
+                    for(OrderDetail orderDetail:orderDetailList){
+                           nameList.add(orderDetail.getName());
+                    }
+                }
+                String orderDishes=String.join(",",nameList);
+                orderVO.setOrderDishes(orderDishes);
+                BeanUtils.copyProperties(order, orderVO);
+                list.add(orderVO);
+            }
+        }
+        return new PageResult(ordersList.getTotal(),list);
+    }
+
+    @Override
+    public OrderStatisticsVO statistics() {
+        OrderStatisticsVO orderStatisticsVO=new OrderStatisticsVO();
+        int toBeConfirmed=orderMapper.countByStatus(Orders.TO_BE_CONFIRMED);
+        int confrimed=orderMapper.countByStatus(Orders.CONFIRMED);
+        int deliveryInProgress=orderMapper.countByStatus(Orders.DELIVERY_IN_PROGRESS);
+        orderStatisticsVO.setToBeConfirmed(toBeConfirmed);
+        orderStatisticsVO.setConfirmed(confrimed);
+        orderStatisticsVO.setDeliveryInProgress(deliveryInProgress);
+        return orderStatisticsVO;
+    }
+
+    @Override
+    public void confirm(OrdersConfirmDTO ordersConfirmDTO) {
+        Orders orders=new Orders();
+        orders.setStatus(Orders.CONFIRMED);
+        orders.setId(ordersConfirmDTO.getId());
+        orderMapper.update(orders);
+    }
+
+    @Override
+    public void rejection(OrdersRejectionDTO ordersRejectionDTO) {
+        Orders orders=new Orders();
+        orders.setStatus(Orders.CANCELLED);
+        orders.setId(ordersRejectionDTO.getId());
+        orders.setCancelReason(ordersRejectionDTO.getRejectionReason());
+        orderMapper.update(orders);
+    }
+
+    @Override
+    public void cancel(OrdersCancelDTO ordersCancelDTO) {
+        Orders orders=new Orders();
+        orders.setStatus(Orders.CANCELLED);
+        orders.setId(ordersCancelDTO.getId());
+        orders.setCancelReason(ordersCancelDTO.getCancelReason());
+        orderMapper.update(orders);
+    }
+
+    @Override
+    public void delivery(Long id) {
+        Orders orders=new Orders();
+        orders.setStatus(Orders.DELIVERY_IN_PROGRESS);
+        orders.setId(id);
+        orderMapper.update(orders);
     }
 }
